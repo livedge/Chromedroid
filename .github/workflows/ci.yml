@@ -1,0 +1,51 @@
+# CI/CD: Build validation on PRs, build + pack + publish on push to main.
+#
+# Recommended GitHub repo settings:
+#   - Protect `main`: require PR, require the `build` status check to pass
+#   - Feature branches: use `feature/*` naming convention, merge via PR
+
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          include-prerelease: true
+
+      - name: Restore
+        run: dotnet restore Chromedroid/Chromedroid.csproj
+
+      - name: Build
+        run: dotnet build Chromedroid/Chromedroid.csproj -c Release --no-restore
+
+      - name: Pack
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: >
+          dotnet pack Chromedroid/Chromedroid.csproj
+          -c Release
+          --no-build
+          --include-symbols
+          --include-source
+          -p:PackageVersion=1.0.${{ github.run_number }}
+
+      - name: Push to GitHub Packages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: >
+          dotnet nuget push **/*.nupkg
+          --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          --api-key ${{ secrets.GITHUB_TOKEN }}

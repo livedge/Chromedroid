@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="Chromedroid/Chromedroid.csproj" />
+  <Folder Name="/SolutionFolder/" />
   <Project Path="Chromedroid.Gui/Chromedroid.Gui.csproj" />
 </Solution>
