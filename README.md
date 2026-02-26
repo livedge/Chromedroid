@@ -1,6 +1,7 @@
 # Chromedroid
 
 [![build](https://github.com/livedge/Chromedroid/actions/workflows/ci.yml/badge.svg)](https://github.com/livedge/Chromedroid/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/badge/NuGet-GitHub%20Packages-blue)](https://github.com/livedge/Chromedroid/pkgs/nuget/Chromedroid)
 
 .NET library for orchestrating Chromium-based browsers on Android devices via ADB and the Chrome DevTools Protocol (CDP). Automate Chrome, Brave, Vivaldi, and other Chromium browsers running on physical Android devices using Playwright.
 
