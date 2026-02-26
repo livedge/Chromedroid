@@ -6,4 +6,9 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+        <PackageReference Include="AdvancedSharpAdbClient" Version="3.6.16" />
+        <PackageReference Include="Microsoft.Playwright" Version="1.52.0" />
+    </ItemGroup>
+
 </Project>

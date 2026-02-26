@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
+using System.Text.Json;
 using AdvancedSharpAdbClient;
 using AdvancedSharpAdbClient.Models;
 using AdvancedSharpAdbClient.Receivers;
@@ -288,6 +290,26 @@ public sealed class AdbBridge : IAsyncDisposable
             await forward.DisposeAsync().ConfigureAwait(false);
             throw;
         }
+    }
+
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(5) };
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    /// <summary>
+    /// Queries the CDP <c>/json</c> endpoint on an active forward to list open targets (tabs/pages).
+    /// </summary>
+    public static async Task<IReadOnlyList<CdpTarget>> ListTargetsAsync(
+        CdpForward forward, CancellationToken ct = default)
+    {
+        var url = $"{forward.EndpointUri}json";
+        using var response = await Http.GetAsync(url, ct).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        return JsonSerializer.Deserialize<List<CdpTarget>>(json, JsonOptions) ?? [];
     }
 
     private static int FindFreePort()

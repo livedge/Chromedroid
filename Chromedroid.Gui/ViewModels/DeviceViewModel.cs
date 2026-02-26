@@ -6,8 +6,6 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Chromedroid.Gui;
 
-public sealed record BrowserStatusItem(string DisplayName, string PackageName);
-
 public sealed partial class DeviceViewModel : ObservableObject
 {
     private static readonly IReadOnlyList<ChromeBrowser> KnownBrowsers = GetKnownBrowsers();
@@ -47,11 +45,14 @@ public sealed partial class DeviceViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(IdentifyCommand))]
     private bool _isIdentifying;
 
+    [ObservableProperty]
+    private BrowserStatusItem? _selectedBrowser;
+
     public string DisplayName => Nickname ?? Model ?? Serial;
 
     public string? DeviceInfo =>
         Manufacturer is not null && AndroidVersion is not null
-            ? $"{Manufacturer} \u00b7 Android {AndroidVersion}"
+            ? $"{Manufacturer} · Android {AndroidVersion}"
             : null;
 
     public ObservableCollection<BrowserStatusItem> RunningBrowsers { get; } = [];
@@ -85,6 +86,42 @@ public sealed partial class DeviceViewModel : ObservableObject
         _nicknameStore.SetNickname(Serial, Nickname);
     }
 
+    [RelayCommand]
+    private async Task SelectBrowserAsync(BrowserStatusItem? browser)
+    {
+        if (browser is not null && browser == SelectedBrowser)
+        {
+            // Toggle off
+            await DeselectBrowserAsync();
+        }
+        else
+        {
+            // Deselect old, select new
+            await DeselectBrowserAsync();
+            if (browser is not null)
+            {
+                browser.IsSelected = true;
+                SelectedBrowser = browser;
+            }
+        }
+    }
+
+    public async Task RefreshOpenPagesAsync(CancellationToken ct = default)
+    {
+        if (SelectedBrowser is not null)
+            await SelectedBrowser.RefreshPagesAsync(DeviceData, ct);
+    }
+
+    private async Task DeselectBrowserAsync()
+    {
+        if (SelectedBrowser is not null)
+        {
+            SelectedBrowser.IsSelected = false;
+            await SelectedBrowser.DisposeAsync();
+            SelectedBrowser = null;
+        }
+    }
+
     public async Task FetchDeviceInfoAsync(CancellationToken ct = default)
     {
         if (State != DeviceState.Online || _hasDeviceInfo) return;
@@ -111,7 +148,7 @@ public sealed partial class DeviceViewModel : ObservableObject
     {
         if (State != DeviceState.Online)
         {
-            RunningBrowsers.Clear();
+            await ClearBrowsersAsync();
             return;
         }
 
@@ -122,7 +159,7 @@ public sealed partial class DeviceViewModel : ObservableObject
         }
         catch
         {
-            RunningBrowsers.Clear();
+            await ClearBrowsersAsync();
             return;
         }
 
@@ -138,23 +175,39 @@ public sealed partial class DeviceViewModel : ObservableObject
             runningPackages.Add(processName);
         }
 
-        var detected = KnownBrowsers
+        var detectedPackages = KnownBrowsers
             .Where(b => runningPackages.Contains(b.PackageName))
-            .Select(b => new BrowserStatusItem(b.DisplayName, b.PackageName))
             .ToList();
 
         // Reconcile: remove stale, add new
         for (var i = RunningBrowsers.Count - 1; i >= 0; i--)
         {
-            if (!detected.Any(d => d.PackageName == RunningBrowsers[i].PackageName))
+            var item = RunningBrowsers[i];
+            if (!detectedPackages.Any(d => d.PackageName == item.PackageName))
+            {
+                if (SelectedBrowser == item)
+                    await DeselectBrowserAsync();
+
+                await item.DisposeAsync();
                 RunningBrowsers.RemoveAt(i);
+            }
         }
 
-        foreach (var item in detected)
+        foreach (var browser in detectedPackages)
         {
-            if (!RunningBrowsers.Any(b => b.PackageName == item.PackageName))
-                RunningBrowsers.Add(item);
+            if (!RunningBrowsers.Any(b => b.PackageName == browser.PackageName))
+                RunningBrowsers.Add(new BrowserStatusItem(_bridge, browser));
         }
+    }
+
+    private async Task ClearBrowsersAsync()
+    {
+        await DeselectBrowserAsync();
+
+        foreach (var item in RunningBrowsers)
+            await item.DisposeAsync();
+
+        RunningBrowsers.Clear();
     }
 
     private bool CanIdentify => State == DeviceState.Online && !IsIdentifying;

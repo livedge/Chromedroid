@@ -12,6 +12,7 @@
         <local:DeviceStateToColorConverter x:Key="StateToColor" />
         <local:NicknameToVisibilityConverter x:Key="NicknameToVisibility" />
         <local:ErrorToSeverityConverter x:Key="ErrorToSeverity" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
     </ui:FluentWindow.Resources>
     <ui:FluentWindow.InputBindings>
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
@@ -102,24 +103,57 @@
                            Text="Browser Status"
                            FontWeight="SemiBold" FontSize="14"
                            Margin="0,0,0,8" />
-                <ItemsControl ItemsSource="{Binding SelectedDevice.RunningBrowsers}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type local:BrowserStatusItem}">
-                            <ui:CardAction Margin="0,0,0,4" IsChevronVisible="False">
-                                <StackPanel Orientation="Horizontal">
-                                    <ui:SymbolIcon Symbol="Globe24"
-                                                   Margin="0,0,8,0" />
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding DisplayName}"
-                                                   FontWeight="SemiBold" FontSize="12" />
-                                        <TextBlock Text="{Binding PackageName}"
-                                                   Opacity="0.6" FontSize="10" />
-                                    </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding SelectedDevice.RunningBrowsers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type local:BrowserStatusItem}">
+                                <StackPanel Margin="0,0,0,4">
+                                    <ui:CardAction IsChevronVisible="True"
+                                                   Command="{Binding DataContext.SelectedDevice.SelectBrowserCommand, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
+                                                   CommandParameter="{Binding}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:SymbolIcon Symbol="Globe24"
+                                                           Margin="0,0,8,0" />
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                           FontWeight="SemiBold" FontSize="12" />
+                                                <TextBlock Text="{Binding PackageName}"
+                                                           Opacity="0.6" FontSize="10" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </ui:CardAction>
+
+                                    <!-- Error text -->
+                                    <TextBlock Text="{Binding PagesError}"
+                                               Foreground="IndianRed" FontSize="11"
+                                               Margin="12,2,0,0" TextWrapping="Wrap"
+                                               Visibility="{Binding PagesError, Converter={StaticResource NicknameToVisibility}}" />
+
+                                    <!-- Open pages list -->
+                                    <ItemsControl ItemsSource="{Binding OpenPages}"
+                                                  Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}"
+                                                  Margin="12,4,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:CdpTargetViewModel}">
+                                                <ui:Card Margin="0,0,0,4" Padding="10,8">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Title}"
+                                                                   FontWeight="SemiBold" FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding Url}"
+                                                                   Opacity="0.6" FontSize="10"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                </ui:Card>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </StackPanel>
-                            </ui:CardAction>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </DockPanel>
         </Grid>
 
