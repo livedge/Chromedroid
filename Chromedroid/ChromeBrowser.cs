@@ -41,19 +41,19 @@ public sealed record ChromeBrowser(
 
     public static ChromeBrowser Brave { get; } = new(
         "com.brave.browser",
-        "com.brave.browser.ChromeTabbedActivity",
+        "com.google.android.apps.chrome.Main",
         "chrome_devtools_remote",
         "Brave");
 
     public static ChromeBrowser BraveBeta { get; } = new(
         "com.brave.browser_beta",
-        "com.brave.browser.ChromeTabbedActivity",
+        "com.google.android.apps.chrome.Main",
         "chrome_devtools_remote",
         "Brave Beta");
 
     public static ChromeBrowser BraveNightly { get; } = new(
         "com.brave.browser_nightly",
-        "com.brave.browser.ChromeTabbedActivity",
+        "com.google.android.apps.chrome.Main",
         "chrome_devtools_remote",
         "Brave Nightly");
 
