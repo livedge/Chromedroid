@@ -55,9 +55,25 @@ public sealed class BrowserSession : IAsyncDisposable
             if (options?.Headers is { } headers)
                 connectOptions.Headers = headers;
 
-            var browser = await playwright.Chromium
-                .ConnectOverCDPAsync(forward.EndpointUri.ToString(), connectOptions)
-                .ConfigureAwait(false);
+            // Retry connection — the browser may not be ready immediately after port forward
+            IBrowser? browser = null;
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                try
+                {
+                    browser = await playwright.Chromium
+                        .ConnectOverCDPAsync(forward.EndpointUri.ToString(), connectOptions)
+                        .ConfigureAwait(false);
+                    break;
+                }
+                catch when (attempt < 4)
+                {
+                    await Task.Delay(2000, ct).ConfigureAwait(false);
+                }
+            }
+
+            if (browser is null)
+                throw new AdbException("Failed to connect to browser after 5 attempts.");
 
             return new BrowserSession(playwright, browser, forward);
         }

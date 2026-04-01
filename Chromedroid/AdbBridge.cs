@@ -100,8 +100,13 @@ public sealed class AdbBridge : IAsyncDisposable
 
             await ExecuteShellAsync(device, $"am start {intent}", ct).ConfigureAwait(false);
 
-            // Brief delay for the DevTools socket to appear
-            await Task.Delay(1000, ct).ConfigureAwait(false);
+            // Wait for the DevTools socket to appear (up to 15 seconds)
+            for (var i = 0; i < 15; i++)
+            {
+                await Task.Delay(1000, ct).ConfigureAwait(false);
+                var sockets = await DiscoverDevToolsSocketsAsync(device, ct).ConfigureAwait(false);
+                if (sockets.Count > 0) return;
+            }
         }
         catch (Exception ex) when (ex is not AdbException and not OperationCanceledException)
         {
