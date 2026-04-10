@@ -55,9 +55,9 @@ public sealed class BrowserSession : IAsyncDisposable
             if (options?.Headers is { } headers)
                 connectOptions.Headers = headers;
 
-            // Retry connection — the browser may not be ready immediately after port forward
+            // Brief retry — the CDP endpoint may need a moment after the socket appears
             IBrowser? browser = null;
-            for (var attempt = 0; attempt < 5; attempt++)
+            for (var attempt = 0; attempt < 3; attempt++)
             {
                 try
                 {
@@ -66,14 +66,14 @@ public sealed class BrowserSession : IAsyncDisposable
                         .ConfigureAwait(false);
                     break;
                 }
-                catch when (attempt < 4)
+                catch when (attempt < 2)
                 {
-                    await Task.Delay(2000, ct).ConfigureAwait(false);
+                    await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
             }
 
             if (browser is null)
-                throw new AdbException("Failed to connect to browser after 5 attempts.");
+                throw new AdbException("Failed to connect to browser CDP endpoint after 3 attempts.");
 
             return new BrowserSession(playwright, browser, forward);
         }

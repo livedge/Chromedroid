@@ -107,6 +107,9 @@ public sealed class AdbBridge : IAsyncDisposable
                 var sockets = await DiscoverDevToolsSocketsAsync(device, ct).ConfigureAwait(false);
                 if (sockets.Count > 0) return;
             }
+
+            throw new AdbException(
+                $"{browser.DisplayName} launched but DevTools socket did not appear within 15 seconds.");
         }
         catch (Exception ex) when (ex is not AdbException and not OperationCanceledException)
         {

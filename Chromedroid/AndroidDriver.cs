@@ -173,14 +173,35 @@ public sealed class AndroidDriver : IAsyncDisposable
 
     private async Task StartNewSessionAsync(string url, CancellationToken ct)
     {
-        await _bridge.LaunchBrowserAsync(_device, _browser, new Uri(url), ct)
-            .ConfigureAwait(false);
+        const int maxAttempts = 3;
+        const int delayMs = 5000;
 
-        _forward = await _bridge.ForwardCdpAsync(_device, _browser, ct: ct)
-            .ConfigureAwait(false);
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await _bridge.LaunchBrowserAsync(_device, _browser, new Uri(url), ct)
+                    .ConfigureAwait(false);
 
-        _session = await BrowserSession.ConnectAsync(_forward, _options, ct)
-            .ConfigureAwait(false);
+                _forward = await _bridge.ForwardCdpAsync(_device, _browser, ct: ct)
+                    .ConfigureAwait(false);
+
+                _session = await BrowserSession.ConnectAsync(_forward, _options, ct)
+                    .ConfigureAwait(false);
+
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch when (attempt < maxAttempts)
+            {
+                // Clean up partial state before retrying
+                await TearDownSessionAsync().ConfigureAwait(false);
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
+            }
+        }
     }
 
     private async Task TearDownSessionAsync()
