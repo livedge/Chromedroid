@@ -55,9 +55,12 @@ public sealed class BrowserSession : IAsyncDisposable
             if (options?.Headers is { } headers)
                 connectOptions.Headers = headers;
 
-            // Brief retry — the CDP endpoint may need a moment after the socket appears
+            // The devtools abstract socket binds as soon as chromium boots, but its HTTP
+            // handler may not be ready to serve /json/version for several seconds after
+            // a cold start. Retry generously — "socket hang up" and similar transient
+            // failures resolve once the handler is up.
             IBrowser? browser = null;
-            for (var attempt = 0; attempt < 3; attempt++)
+            for (var attempt = 0; attempt < 5; attempt++)
             {
                 try
                 {
@@ -66,14 +69,14 @@ public sealed class BrowserSession : IAsyncDisposable
                         .ConfigureAwait(false);
                     break;
                 }
-                catch when (attempt < 2)
+                catch when (attempt < 4)
                 {
-                    await Task.Delay(1000, ct).ConfigureAwait(false);
+                    await Task.Delay(2000, ct).ConfigureAwait(false);
                 }
             }
 
             if (browser is null)
-                throw new AdbException("Failed to connect to browser CDP endpoint after 3 attempts.");
+                throw new AdbException("Failed to connect to browser CDP endpoint after 5 attempts.");
 
             return new BrowserSession(playwright, browser, forward);
         }
