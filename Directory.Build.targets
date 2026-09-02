@@ -1,11 +1,12 @@
 <Project>
 
     <!-- Local dev-feed loop: `dotnet build <project> -p:GeneratePackageOnBuild=true`
-         packs the project as 1.0.0-dev.{git-commit-count} straight into the
-         machine-wide folder feed. Consumers opt in by pinning
-         Version="1.0.0-dev.*"; floating "*" consumers never see dev packages
-         (prerelease sorts below any stable). Inert in CI, which packs
-         explicitly with its own versions. -->
+         packs the project as 9999.0.0-dev.{git-commit-count} straight into the
+         machine-wide folder feed. Consumers pick local builds up by setting
+         LIVEDGE_LOCAL_PACKAGES=1 in the environment (a machine-level MSBuild
+         hook floats any package present in the feed) — no version pins are
+         ever edited. Without the env var, and in CI, dev packages are
+         invisible. -->
     <PropertyGroup>
         <LocalNuGetFeed Condition="'$(OS)' == 'Windows_NT'">C:\local.nuget</LocalNuGetFeed>
         <LocalNuGetFeed Condition="'$(OS)' != 'Windows_NT'">$(HOME)/.local.nuget</LocalNuGetFeed>
@@ -28,8 +29,8 @@
             <Output TaskParameter="ExitCode" PropertyName="_GitExitCode"/>
         </Exec>
         <PropertyGroup Condition="'$(_GitExitCode)' == '0' and '$(_GitCount.Trim())' != ''">
-            <Version>1.0.0-dev.$(_GitCount.Trim())</Version>
-            <PackageVersion>1.0.0-dev.$(_GitCount.Trim())</PackageVersion>
+            <Version>9999.0.0-dev.$(_GitCount.Trim())</Version>
+            <PackageVersion>9999.0.0-dev.$(_GitCount.Trim())</PackageVersion>
         </PropertyGroup>
     </Target>
 
@@ -38,7 +39,7 @@
             BeforeTargets="_SetGitVersion"
             Condition="'$(_LocalDevPack)' == 'true'">
         <ItemGroup>
-            <_OldPkgs Include="$(PackageOutputPath)/$(PackageId).1.0.0-dev*.nupkg"/>
+            <_OldPkgs Include="$(PackageOutputPath)/$(PackageId).9999.0.0-dev*.nupkg"/>
         </ItemGroup>
         <Delete Files="@(_OldPkgs)" Condition="'@(_OldPkgs)' != ''"/>
     </Target>
