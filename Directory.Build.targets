@@ -1,0 +1,46 @@
+<Project>
+
+    <!-- Local dev-feed loop: `dotnet build <project> -p:GeneratePackageOnBuild=true`
+         packs the project as 1.0.0-dev.{git-commit-count} straight into the
+         machine-wide folder feed. Consumers opt in by pinning
+         Version="1.0.0-dev.*"; floating "*" consumers never see dev packages
+         (prerelease sorts below any stable). Inert in CI, which packs
+         explicitly with its own versions. -->
+    <PropertyGroup>
+        <LocalNuGetFeed Condition="'$(OS)' == 'Windows_NT'">C:\local.nuget</LocalNuGetFeed>
+        <LocalNuGetFeed Condition="'$(OS)' != 'Windows_NT'">$(HOME)/.local.nuget</LocalNuGetFeed>
+        <_LocalDevPack Condition="'$(GeneratePackageOnBuild)' == 'true' and '$(TF_BUILD)' != 'True' and '$(GITHUB_ACTIONS)' != 'true'">true</_LocalDevPack>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(_LocalDevPack)' == 'true'">
+        <PackageOutputPath>$(LocalNuGetFeed)</PackageOutputPath>
+    </PropertyGroup>
+
+    <!-- Resolve version from git commit count before the pack step (local builds only). -->
+    <Target Name="_SetGitVersion"
+            BeforeTargets="GenerateNuspec;_GetPackageFiles"
+            Condition="'$(_LocalDevPack)' == 'true'">
+        <Exec Command="git rev-list --count HEAD"
+              ConsoleToMSBuild="true"
+              IgnoreExitCode="true"
+              StandardOutputImportance="low">
+            <Output TaskParameter="ConsoleOutput" PropertyName="_GitCount"/>
+            <Output TaskParameter="ExitCode" PropertyName="_GitExitCode"/>
+        </Exec>
+        <PropertyGroup Condition="'$(_GitExitCode)' == '0' and '$(_GitCount.Trim())' != ''">
+            <Version>1.0.0-dev.$(_GitCount.Trim())</Version>
+            <PackageVersion>1.0.0-dev.$(_GitCount.Trim())</PackageVersion>
+        </PropertyGroup>
+    </Target>
+
+    <!-- Remove old dev packages for this package ID before writing the new one -->
+    <Target Name="_CleanOldDevPackages"
+            BeforeTargets="_SetGitVersion"
+            Condition="'$(_LocalDevPack)' == 'true'">
+        <ItemGroup>
+            <_OldPkgs Include="$(PackageOutputPath)/$(PackageId).1.0.0-dev*.nupkg"/>
+        </ItemGroup>
+        <Delete Files="@(_OldPkgs)" Condition="'@(_OldPkgs)' != ''"/>
+    </Target>
+
+</Project>
